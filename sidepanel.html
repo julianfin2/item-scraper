@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品信息抓取助手</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 p-4">
+  <div class="max-w-md mx-auto">
+
+    <!-- API Config -->
+    <section class="bg-white rounded-lg shadow-sm mb-4 border border-gray-200">
+      <div id="toggleConfig" class="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors">
+        <h2 class="text-sm font-semibold text-gray-700">配置选项</h2>
+        <span id="configChevron" class="text-gray-400 transition-transform" style="font-size: 10px;">▼</span>
+      </div>
+      <div id="configContent" class="px-4 pb-4 pt-2 hidden">
+        <!-- Compact Gemini Config -->
+        <div class="space-y-2 mb-4">
+          <div>
+            <label class="block text-[10px] uppercase font-bold text-gray-400">Gemini API 密钥</label>
+            <input type="password" id="apiKey" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="输入 API Key">
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase font-bold text-gray-400">Apps Script 链接</label>
+            <input type="text" id="scriptUrl" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="输入 Google Apps Script 链接">
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase font-bold text-gray-400">AI 模型名称</label>
+            <input type="text" id="modelInput" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="例如：gemini-1.5-flash">
+          </div>
+        </div>
+        <button id="saveConfig" class="w-full mt-2 mb-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded transition-colors font-medium">保存设置</button>
+        
+        <!-- Spacious Preset Management -->
+        <div class="pt-4 border-t border-gray-100 space-y-3">
+          <label class="block text-xs font-bold text-gray-600 mb-1">预设管理</label>
+          <div class="space-y-2.5">
+            <input type="text" id="newPresetName" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none" placeholder="预设名称 (如：提取笔记本)">
+            <input type="text" id="newPresetSheet" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none" placeholder="目标工作表名称 (如：笔记本清单)">
+            <textarea id="newPresetFields" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none h-16" placeholder="提取字段 (用逗号分隔，如：品牌, 型号, 价格)"></textarea>
+            <div class="flex gap-2">
+              <button id="addPreset" class="flex-1 bg-indigo-50 text-indigo-700 text-xs py-2 rounded hover:bg-indigo-100 transition-colors font-semibold border border-indigo-200">添加新预设</button>
+              <button id="cancelEdit" class="hidden px-3 bg-gray-100 text-gray-600 text-xs py-2 rounded hover:bg-gray-200 transition-colors font-semibold border border-gray-200">取消</button>
+            </div>
+          </div>
+          <div id="presetList" class="mt-4 space-y-2 max-h-40 overflow-y-auto pr-1">
+            <!-- Saved presets -->
+          </div>
+
+          <!-- Import/Export Presets -->
+          <div class="flex gap-2 pt-2 border-t border-gray-100">
+            <button id="exportPresets" class="flex-1 bg-white text-gray-600 text-[10px] py-1 rounded border border-gray-300 hover:bg-gray-50 transition-colors font-medium">导出预设</button>
+            <button id="importPresets" class="flex-1 bg-white text-gray-600 text-[10px] py-1 rounded border border-gray-300 hover:bg-gray-50 transition-colors font-medium">导入预设</button>
+            <input type="file" id="importInput" class="hidden" accept=".json">
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Unified Extraction Control -->
+    <section class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4">
+      <h2 class="text-sm font-semibold mb-3 text-gray-700">执行提取任务</h2>
+      <div class="flex gap-2">
+        <select id="presetSelect" class="flex-1 border border-gray-300 rounded px-2 py-1.5 text-sm outline-none bg-white">
+          <!-- Options injected by JS -->
+        </select>
+        <button id="runPreset" class="bg-indigo-600 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-indigo-700 transition-colors">提取</button>
+      </div>
+    </section>
+
+    <!-- Logs / Status -->
+    <section class="bg-gray-100 rounded-lg p-3 text-xs">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-bold text-gray-600 uppercase">状态与结果</span>
+        <span id="statusBadge" class="status-badge bg-gray-200 text-gray-600">待机</span>
+      </div>
+      <div id="results" class="max-h-64 overflow-y-auto font-mono text-gray-700 bg-white p-2 rounded border border-gray-200 whitespace-pre-wrap">暂无操作。</div>
+    </section>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
