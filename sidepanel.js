@@ -50,10 +50,12 @@ const MODEL_PROVIDERS = {
   }
 };
 
+const DEFAULT_PROVIDER = 'openai';
+
 let currentPresets = [];
 let editingPresetId = null;
 let storedSettings = {};
-let activeProvider = 'gemini';
+let activeProvider = DEFAULT_PROVIDER;
 
 toggleConfig.addEventListener('click', () => {
   const isHidden = configContent.classList.toggle('hidden');
@@ -63,7 +65,7 @@ toggleConfig.addEventListener('click', () => {
 // Load settings and presets on startup
 chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleScriptUrl', 'geminiModel', 'openaiModel', 'userPresets'], (data) => {
   storedSettings = data;
-  const provider = data.aiProvider || 'gemini';
+  const provider = data.aiProvider || DEFAULT_PROVIDER;
   providerSelect.value = provider;
   syncProviderFields(provider);
   activeProvider = provider;
@@ -294,7 +296,7 @@ runPresetBtn.addEventListener('click', () => {
 
 async function handleExtraction(type, presetObj) {
   const data = await chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleScriptUrl', 'geminiModel', 'openaiModel']);
-  const provider = data.aiProvider || 'gemini';
+  const provider = data.aiProvider || DEFAULT_PROVIDER;
   const providerConfig = MODEL_PROVIDERS[provider] || MODEL_PROVIDERS.gemini;
   const apiKey = data[providerConfig.apiKeyStorageKey];
   

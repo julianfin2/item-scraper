@@ -21,12 +21,12 @@
           <div>
             <label class="block text-[10px] uppercase font-bold text-gray-400">AI 服务商</label>
             <select id="providerSelect" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
-              <option value="gemini">Gemini</option>
               <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
             </select>
           </div>
           <div>
-            <label id="apiKeyLabel" class="block text-[10px] uppercase font-bold text-gray-400">Gemini API 密钥</label>
+            <label id="apiKeyLabel" class="block text-[10px] uppercase font-bold text-gray-400">OpenAI API 密钥</label>
             <input type="password" id="apiKey" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="输入 API Key">
           </div>
           <div>
@@ -35,7 +35,7 @@
           </div>
           <div>
             <label class="block text-[10px] uppercase font-bold text-gray-400">AI 模型名称</label>
-            <input type="text" id="modelInput" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="例如：gemini-1.5-flash">
+            <input type="text" id="modelInput" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="例如：gpt-4.1-mini">
           </div>
         </div>
         <button id="saveConfig" class="w-full mt-2 mb-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm py-2 rounded transition-colors font-medium">保存设置</button>
