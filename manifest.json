@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "商品信息抓取助手",
   "version": "0.1.0",
-  "description": "使用 Gemini AI 从网站抓取自定义的商品数据。",
+  "description": "使用 AI 从网站抓取自定义的商品数据。",
   "permissions": [
     "sidePanel",
     "scripting",
@@ -11,6 +11,7 @@
   ],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",
+    "https://api.openai.com/*",
     "<all_urls>"
   ],
   "background": {

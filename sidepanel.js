@@ -1,5 +1,7 @@
 // DOM Elements
 const apiKeyInput = document.getElementById('apiKey');
+const apiKeyLabel = document.getElementById('apiKeyLabel');
+const providerSelect = document.getElementById('providerSelect');
 const scriptUrlInput = document.getElementById('scriptUrl');
 const modelInput = document.getElementById('modelInput');
 const saveConfigBtn = document.getElementById('saveConfig');
@@ -31,8 +33,27 @@ const DEFAULT_PRESETS = [
   { id: 'p2', name: '提取外设', sheetName: '外设', fields: '品牌, 型号, 连接方式, 电池寿命, 价格, URL' }
 ];
 
+const MODEL_PROVIDERS = {
+  gemini: {
+    name: 'Gemini',
+    apiKeyStorageKey: 'geminiApiKey',
+    modelStorageKey: 'geminiModel',
+    defaultModel: 'gemini-1.5-flash',
+    modelPlaceholder: '例如：gemini-1.5-flash'
+  },
+  openai: {
+    name: 'OpenAI',
+    apiKeyStorageKey: 'openaiApiKey',
+    modelStorageKey: 'openaiModel',
+    defaultModel: 'gpt-4.1-mini',
+    modelPlaceholder: '例如：gpt-4.1-mini'
+  }
+};
+
 let currentPresets = [];
 let editingPresetId = null;
+let storedSettings = {};
+let activeProvider = 'gemini';
 
 toggleConfig.addEventListener('click', () => {
   const isHidden = configContent.classList.toggle('hidden');
@@ -40,9 +61,15 @@ toggleConfig.addEventListener('click', () => {
 });
 
 // Load settings and presets on startup
-chrome.storage.local.get(['geminiApiKey', 'googleScriptUrl', 'geminiModel', 'userPresets'], (data) => {
-  if (data.geminiApiKey) {
-    apiKeyInput.value = data.geminiApiKey;
+chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleScriptUrl', 'geminiModel', 'openaiModel', 'userPresets'], (data) => {
+  storedSettings = data;
+  const provider = data.aiProvider || 'gemini';
+  providerSelect.value = provider;
+  syncProviderFields(provider);
+  activeProvider = provider;
+
+  const providerConfig = MODEL_PROVIDERS[provider];
+  if (data[providerConfig.apiKeyStorageKey]) {
     configContent.classList.add('hidden');
     configChevron.classList.remove('rotate-180');
   } else {
@@ -50,10 +77,15 @@ chrome.storage.local.get(['geminiApiKey', 'googleScriptUrl', 'geminiModel', 'use
     configChevron.classList.add('rotate-180');
   }
   if (data.googleScriptUrl) scriptUrlInput.value = data.googleScriptUrl;
-  if (data.geminiModel) modelInput.value = data.geminiModel;
 
   currentPresets = data.userPresets || DEFAULT_PRESETS;
   renderPresets(currentPresets);
+});
+
+providerSelect.addEventListener('change', () => {
+  syncCurrentProviderInputs();
+  syncProviderFields(providerSelect.value);
+  activeProvider = providerSelect.value;
 });
 
 // Save global settings
@@ -61,15 +93,38 @@ saveConfigBtn.addEventListener('click', () => {
   const apiKey = apiKeyInput.value.trim();
   const scriptUrl = scriptUrlInput.value.trim();
   const model = modelInput.value.trim();
+  const provider = providerSelect.value;
+  const providerConfig = MODEL_PROVIDERS[provider];
+
+  syncCurrentProviderInputs();
+
   chrome.storage.local.set({ 
-    geminiApiKey: apiKey, 
+    aiProvider: provider,
+    [providerConfig.apiKeyStorageKey]: apiKey,
     googleScriptUrl: scriptUrl,
-    geminiModel: model
+    [providerConfig.modelStorageKey]: model
   }, () => {
     updateStatus('已保存', 'bg-green-500 text-white');
     setTimeout(() => updateStatus('待机', 'bg-gray-200 text-gray-600'), 2000);
   });
 });
+
+function syncCurrentProviderInputs() {
+  const provider = activeProvider;
+  const providerConfig = MODEL_PROVIDERS[provider];
+  storedSettings[providerConfig.apiKeyStorageKey] = apiKeyInput.value.trim();
+  storedSettings[providerConfig.modelStorageKey] = modelInput.value.trim();
+  storedSettings.googleScriptUrl = scriptUrlInput.value.trim();
+  storedSettings.aiProvider = providerSelect.value;
+}
+
+function syncProviderFields(provider) {
+  const providerConfig = MODEL_PROVIDERS[provider] || MODEL_PROVIDERS.gemini;
+  apiKeyLabel.textContent = `${providerConfig.name} API 密钥`;
+  apiKeyInput.value = storedSettings[providerConfig.apiKeyStorageKey] || '';
+  modelInput.value = storedSettings[providerConfig.modelStorageKey] || '';
+  modelInput.placeholder = providerConfig.modelPlaceholder;
+}
 
 // Preset Management Logic
 addPresetBtn.addEventListener('click', async () => {
@@ -238,14 +293,17 @@ runPresetBtn.addEventListener('click', () => {
 });
 
 async function handleExtraction(type, presetObj) {
-  const { geminiApiKey, googleScriptUrl, geminiModel } = await chrome.storage.local.get(['geminiApiKey', 'googleScriptUrl', 'geminiModel']);
+  const data = await chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleScriptUrl', 'geminiModel', 'openaiModel']);
+  const provider = data.aiProvider || 'gemini';
+  const providerConfig = MODEL_PROVIDERS[provider] || MODEL_PROVIDERS.gemini;
+  const apiKey = data[providerConfig.apiKeyStorageKey];
   
-  if (!geminiApiKey) {
-    alert('请先输入 Gemini API 密钥。');
+  if (!apiKey) {
+    alert(`请先输入 ${providerConfig.name} API 密钥。`);
     return;
   }
 
-  const selectedModel = geminiModel || 'gemini-1.5-flash';
+  const selectedModel = data[providerConfig.modelStorageKey] || providerConfig.defaultModel;
   updateStatus('提取中...', 'bg-blue-500 text-white');
   resultsArea.textContent = `正在使用 ${selectedModel} 提取 ${presetObj.name}...`;
 
@@ -256,7 +314,7 @@ async function handleExtraction(type, presetObj) {
       files: ['content.js']
     });
 
-    resultsArea.textContent = '正在发送至 Gemini...';
+    resultsArea.textContent = `正在发送至 ${providerConfig.name}...`;
     
     const systemPrompt = `你是一个专业的采购助手。
 请从以下网页文本中提取产品数据。
@@ -271,8 +329,8 @@ Title: ${pageData.title}`;
 2. 将提取到的具体内容翻译成中文。
 3. 仅返回 JSON 格式，不要包含任何多余的解释文字。`;
 
-    const geminiResult = await callGemini(geminiApiKey, selectedModel, systemPrompt, pageData.text, userPrompt);
-    let cleanedJson = parseGeminiJson(geminiResult);
+    const aiResult = await callAiProvider(provider, apiKey, selectedModel, systemPrompt, pageData.text, userPrompt);
+    let cleanedJson = parseAiJson(aiResult);
     
     if (Array.isArray(cleanedJson)) {
       cleanedJson = cleanedJson[0] || {};
@@ -329,7 +387,52 @@ async function callGemini(apiKey, model, systemPrompt, contextText, userPrompt) 
   return data.candidates[0].content.parts[0].text;
 }
 
-function parseGeminiJson(text) {
+async function callOpenAI(apiKey, model, systemPrompt, contextText, userPrompt) {
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: `上下文:\n${contextText}\n\n任务: ${userPrompt}`
+        }
+      ]
+    })
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.message || `OpenAI 请求失败 (${response.status})`);
+  }
+  return extractOpenAIText(data);
+}
+
+function extractOpenAIText(data) {
+  if (data.output_text) return data.output_text;
+
+  const message = data.output?.find(item => item.type === 'message');
+  const textPart = message?.content?.find(part => part.type === 'output_text' || part.type === 'text');
+  if (textPart?.text) return textPart.text;
+
+  throw new Error('OpenAI 返回结果中没有可解析的文本内容');
+}
+
+async function callAiProvider(provider, apiKey, model, systemPrompt, contextText, userPrompt) {
+  if (provider === 'openai') {
+    return callOpenAI(apiKey, model, systemPrompt, contextText, userPrompt);
+  }
+  return callGemini(apiKey, model, systemPrompt, contextText, userPrompt);
+}
+
+function parseAiJson(text) {
   try {
     const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return JSON.parse(jsonStr);

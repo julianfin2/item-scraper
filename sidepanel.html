@@ -16,10 +16,17 @@
         <span id="configChevron" class="text-gray-400 transition-transform" style="font-size: 10px;">▼</span>
       </div>
       <div id="configContent" class="px-4 pb-4 pt-2 hidden">
-        <!-- Compact Gemini Config -->
+        <!-- AI Config -->
         <div class="space-y-2 mb-4">
           <div>
-            <label class="block text-[10px] uppercase font-bold text-gray-400">Gemini API 密钥</label>
+            <label class="block text-[10px] uppercase font-bold text-gray-400">AI 服务商</label>
+            <select id="providerSelect" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none bg-white">
+              <option value="gemini">Gemini</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
+          <div>
+            <label id="apiKeyLabel" class="block text-[10px] uppercase font-bold text-gray-400">Gemini API 密钥</label>
             <input type="password" id="apiKey" class="w-full mt-0.5 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="输入 API Key">
           </div>
           <div>
