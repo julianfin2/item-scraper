@@ -1,0 +1,37 @@
+name: Release Browser Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      attestations: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Package Extension Files
+        run: |
+          mkdir -p dist/icons
+          cp manifest.json background.js content.js sidepanel.html sidepanel.js style.css LICENSE dist/
+          cp icons/*.png dist/icons/
+          cd dist
+          zip -r ../item-scraper-${{ github.ref_name }}.zip .
+
+      - name: Attest Build Provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: '*.zip'
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '*.zip'
+          generate_release_notes: true
