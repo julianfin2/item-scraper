@@ -52,11 +52,13 @@ const MODEL_PROVIDERS = {
 };
 
 const DEFAULT_PROVIDER = 'openai';
+const SCRIPT_PING_TTL_MS = 5 * 60 * 1000;
 
 let currentPresets = [];
 let editingPresetId = null;
 let storedSettings = {};
 let activeProvider = DEFAULT_PROVIDER;
+let scriptPingCache = null;
 const RUN_BUTTON_TEXT = runPresetBtn.textContent;
 
 toggleConfig.addEventListener('click', () => {
@@ -320,6 +322,12 @@ async function handleExtraction(type, presetObj) {
   resultsArea.textContent = `正在使用 ${selectedModel} 提取 ${presetObj.name}...`;
 
   try {
+    if (googleScriptUrl) {
+      updateStatus('检查表格...', 'bg-blue-500 text-white');
+      resultsArea.textContent = '正在检查 Apps Script 写入配置...';
+      await ensureGoogleScriptReady(googleScriptUrl, googleScriptToken);
+    }
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const [{ result: pageData }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -533,6 +541,33 @@ function extractFirstJsonBlock(text) {
 }
 
 async function sendToGoogleScript(url, payload) {
+  try {
+    return await postGoogleScript(url, payload);
+  } catch (error) {
+    clearScriptPingCache(url, payload.token);
+    throw error;
+  }
+}
+
+async function ensureGoogleScriptReady(url, token) {
+  if (!token) {
+    throw new Error('请先配置 Apps Script 写入密钥。');
+  }
+
+  const cacheKey = getScriptPingCacheKey(url, token);
+  const now = Date.now();
+  if (scriptPingCache?.key === cacheKey && scriptPingCache.expiresAt > now) {
+    return;
+  }
+
+  await postGoogleScript(url, { action: 'ping', token });
+  scriptPingCache = {
+    key: cacheKey,
+    expiresAt: now + SCRIPT_PING_TTL_MS
+  };
+}
+
+async function postGoogleScript(url, payload) {
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -544,6 +579,16 @@ async function sendToGoogleScript(url, payload) {
     throw new Error(data.message || `表格写入失败 (${response.status})`);
   }
   return data;
+}
+
+function clearScriptPingCache(url, token) {
+  if (scriptPingCache?.key === getScriptPingCacheKey(url, token)) {
+    scriptPingCache = null;
+  }
+}
+
+function getScriptPingCacheKey(url, token) {
+  return `${url}::${token}`;
 }
 
 function updateStatus(text, classes) {

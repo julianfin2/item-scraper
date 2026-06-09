@@ -24,6 +24,11 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (data.action === "ping") {
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", action: "ping" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet;
 
