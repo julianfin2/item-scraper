@@ -6,11 +6,19 @@
  * 4. Deploy > New Deployment > Web App.
  * 5. Set 'Execute as: Me' and 'Who has access: Anyone'.
  * 6. Copy the Web App URL and paste it into the Extension.
+ * 7. Optional: set SECRET_TOKEN below and enter the same value in the Extension.
  */
+
+var SECRET_TOKEN = "";
 
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    if (SECRET_TOKEN && data.token !== SECRET_TOKEN) {
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid token" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet;
 
@@ -30,7 +38,7 @@ function doPost(e) {
 
     // 2. Get incoming headers (from data.headers or keys)
     var incomingHeaders = data.headers || Object.keys(data).filter(function(k) {
-      return !["sheetName", "headers"].includes(k);
+      return !["sheetName", "headers", "token"].includes(k);
     });
 
     if (lastRow === 0) {

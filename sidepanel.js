@@ -3,6 +3,7 @@ const apiKeyInput = document.getElementById('apiKey');
 const apiKeyLabel = document.getElementById('apiKeyLabel');
 const providerSelect = document.getElementById('providerSelect');
 const scriptUrlInput = document.getElementById('scriptUrl');
+const scriptTokenInput = document.getElementById('scriptToken');
 const modelInput = document.getElementById('modelInput');
 const saveConfigBtn = document.getElementById('saveConfig');
 const statusBadge = document.getElementById('statusBadge');
@@ -56,6 +57,7 @@ let currentPresets = [];
 let editingPresetId = null;
 let storedSettings = {};
 let activeProvider = DEFAULT_PROVIDER;
+const RUN_BUTTON_TEXT = runPresetBtn.textContent;
 
 toggleConfig.addEventListener('click', () => {
   const isHidden = configContent.classList.toggle('hidden');
@@ -63,7 +65,7 @@ toggleConfig.addEventListener('click', () => {
 });
 
 // Load settings and presets on startup
-chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleScriptUrl', 'geminiModel', 'openaiModel', 'userPresets'], (data) => {
+chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleScriptUrl', 'googleScriptToken', 'geminiModel', 'openaiModel', 'userPresets'], (data) => {
   storedSettings = data;
   const provider = data.aiProvider || DEFAULT_PROVIDER;
   providerSelect.value = provider;
@@ -79,6 +81,7 @@ chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleS
     configChevron.classList.add('rotate-180');
   }
   if (data.googleScriptUrl) scriptUrlInput.value = data.googleScriptUrl;
+  if (data.googleScriptToken) scriptTokenInput.value = data.googleScriptToken;
 
   currentPresets = data.userPresets || DEFAULT_PRESETS;
   renderPresets(currentPresets);
@@ -94,6 +97,7 @@ providerSelect.addEventListener('change', () => {
 saveConfigBtn.addEventListener('click', () => {
   const apiKey = apiKeyInput.value.trim();
   const scriptUrl = scriptUrlInput.value.trim();
+  const scriptToken = scriptTokenInput.value.trim();
   const model = modelInput.value.trim();
   const provider = providerSelect.value;
   const providerConfig = MODEL_PROVIDERS[provider];
@@ -104,6 +108,7 @@ saveConfigBtn.addEventListener('click', () => {
     aiProvider: provider,
     [providerConfig.apiKeyStorageKey]: apiKey,
     googleScriptUrl: scriptUrl,
+    googleScriptToken: scriptToken,
     [providerConfig.modelStorageKey]: model
   }, () => {
     updateStatus('已保存', 'bg-green-500 text-white');
@@ -117,6 +122,7 @@ function syncCurrentProviderInputs() {
   storedSettings[providerConfig.apiKeyStorageKey] = apiKeyInput.value.trim();
   storedSettings[providerConfig.modelStorageKey] = modelInput.value.trim();
   storedSettings.googleScriptUrl = scriptUrlInput.value.trim();
+  storedSettings.googleScriptToken = scriptTokenInput.value.trim();
   storedSettings.aiProvider = providerSelect.value;
 }
 
@@ -289,13 +295,16 @@ function renderPresets(presets) {
 
 // Extraction Handler
 runPresetBtn.addEventListener('click', () => {
+  if (runPresetBtn.disabled) return;
+
   const selectedId = presetSelect.value;
   const preset = currentPresets.find(p => p.id === selectedId);
   if (preset) handleExtraction('preset', preset);
 });
 
 async function handleExtraction(type, presetObj) {
-  const data = await chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleScriptUrl', 'geminiModel', 'openaiModel']);
+  const data = await chrome.storage.local.get(['aiProvider', 'geminiApiKey', 'openaiApiKey', 'googleScriptUrl', 'googleScriptToken', 'geminiModel', 'openaiModel']);
+  const { googleScriptUrl, googleScriptToken } = data;
   const provider = data.aiProvider || DEFAULT_PROVIDER;
   const providerConfig = MODEL_PROVIDERS[provider] || MODEL_PROVIDERS.gemini;
   const apiKey = data[providerConfig.apiKeyStorageKey];
@@ -306,6 +315,7 @@ async function handleExtraction(type, presetObj) {
   }
 
   const selectedModel = data[providerConfig.modelStorageKey] || providerConfig.defaultModel;
+  setExtractionBusy(true);
   updateStatus('提取中...', 'bg-blue-500 text-white');
   resultsArea.textContent = `正在使用 ${selectedModel} 提取 ${presetObj.name}...`;
 
@@ -350,6 +360,10 @@ Title: ${pageData.title}`;
         sheetName: presetObj.sheetName || '',
         headers: allHeaders
       };
+
+      if (googleScriptToken) {
+        payload.token = googleScriptToken;
+      }
       
       businessHeaders.forEach(h => {
         payload[h] = cleanedJson[h] || "N/A";
@@ -368,7 +382,16 @@ Title: ${pageData.title}`;
     console.error(error);
     updateStatus('错误', 'bg-red-500 text-white');
     resultsArea.textContent = `错误: ${error.message}`;
+  } finally {
+    setExtractionBusy(false);
   }
+}
+
+function setExtractionBusy(isBusy) {
+  runPresetBtn.disabled = isBusy;
+  runPresetBtn.textContent = isBusy ? '提取中...' : RUN_BUTTON_TEXT;
+  runPresetBtn.style.opacity = isBusy ? '0.65' : '';
+  runPresetBtn.style.cursor = isBusy ? 'not-allowed' : '';
 }
 
 async function callGemini(apiKey, model, systemPrompt, contextText, userPrompt) {
@@ -398,6 +421,9 @@ async function callOpenAI(apiKey, model, systemPrompt, contextText, userPrompt) 
     },
     body: JSON.stringify({
       model,
+      text: {
+        format: { type: 'json_object' }
+      },
       input: [
         {
           role: 'system',
@@ -435,21 +461,87 @@ async function callAiProvider(provider, apiKey, model, systemPrompt, contextText
 }
 
 function parseAiJson(text) {
-  try {
-    const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    throw new Error('AI 返回了无效的 JSON: ' + text);
+  const candidates = getJsonCandidates(text);
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch (e) {
+      // Try the next candidate.
+    }
   }
+
+  throw new Error('AI 返回了无效的 JSON: ' + text);
+}
+
+function getJsonCandidates(text) {
+  const rawText = String(text || '').trim();
+  const candidates = [];
+  const fencedMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/i);
+
+  if (fencedMatch) candidates.push(fencedMatch[1].trim());
+  candidates.push(rawText.replace(/```json/gi, '').replace(/```/g, '').trim());
+
+  const jsonBlock = extractFirstJsonBlock(rawText);
+  if (jsonBlock) candidates.push(jsonBlock);
+
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+function extractFirstJsonBlock(text) {
+  const start = text.search(/[\[{]/);
+  if (start === -1) return null;
+
+  const opening = text[start];
+  const closing = opening === '{' ? '}' : ']';
+  const stack = [closing];
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start + 1; i < text.length; i++) {
+    const char = text[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = inString;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === '{') stack.push('}');
+    if (char === '[') stack.push(']');
+
+    if (char === '}' || char === ']') {
+      if (char !== stack.pop()) return null;
+      if (stack.length === 0) return text.slice(start, i + 1).trim();
+    }
+  }
+
+  return null;
 }
 
 async function sendToGoogleScript(url, payload) {
-  return await fetch(url, {
+  const response = await fetch(url, {
     method: 'POST',
-    mode: 'no-cors',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
+
+  const data = await response.json();
+  if (!response.ok || data.status !== 'success') {
+    throw new Error(data.message || `表格写入失败 (${response.status})`);
+  }
+  return data;
 }
 
 function updateStatus(text, classes) {
