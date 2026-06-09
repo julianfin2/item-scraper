@@ -3,10 +3,10 @@
  * 1. Create a new Google Sheet.
  * 2. Extensions > Apps Script.
  * 3. Paste this code.
- * 4. Deploy > New Deployment > Web App.
- * 5. Set 'Execute as: Me' and 'Who has access: Anyone'.
- * 6. Copy the Web App URL and paste it into the Extension.
- * 7. Optional: set SECRET_TOKEN below and enter the same value in the Extension.
+ * 4. Set SECRET_TOKEN below and enter the same value in the Extension later.
+ * 5. Deploy > New Deployment > Web App.
+ * 6. Set 'Execute as: Me' and 'Who has access: Anyone'.
+ * 7. Copy the Web App URL and paste it into the Extension.
  */
 
 var SECRET_TOKEN = "";
@@ -14,7 +14,12 @@ var SECRET_TOKEN = "";
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
-    if (SECRET_TOKEN && data.token !== SECRET_TOKEN) {
+    if (!SECRET_TOKEN) {
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "SECRET_TOKEN is not configured" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.token !== SECRET_TOKEN) {
       return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Invalid token" }))
         .setMimeType(ContentService.MimeType.JSON);
     }

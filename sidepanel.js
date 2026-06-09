@@ -351,6 +351,10 @@ Title: ${pageData.title}`;
     resultsArea.textContent = JSON.stringify(cleanedJson, null, 2);
 
     if (googleScriptUrl) {
+      if (!googleScriptToken) {
+        throw new Error('请先配置 Apps Script 写入密钥。');
+      }
+
       updateStatus('保存至表格...', 'bg-purple-500 text-white');
       const businessHeaders = presetObj.fields.split(',').map(f => f.trim()).filter(f => f !== "");
       const metaHeaders = ["来源链接", "提取时间"];
@@ -361,9 +365,7 @@ Title: ${pageData.title}`;
         headers: allHeaders
       };
 
-      if (googleScriptToken) {
-        payload.token = googleScriptToken;
-      }
+      payload.token = googleScriptToken;
       
       businessHeaders.forEach(h => {
         payload[h] = cleanedJson[h] || "N/A";
