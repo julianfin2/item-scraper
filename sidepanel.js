@@ -269,22 +269,49 @@ function renderPresets(presets) {
     // 1. Settings List Item
     const item = document.createElement('div');
     item.className = 'flex items-center justify-between bg-white p-3 mb-2 rounded-lg border border-gray-200 shadow-sm transition-all hover:border-indigo-200';
-    item.innerHTML = `
-      <div class="flex-1 overflow-hidden mr-2">
-        <div class="text-xs font-bold text-gray-800 truncate">${preset.name} ${preset.sheetName ? `<span class="text-indigo-500 ml-1">#${preset.sheetName}</span>` : ''}</div>
-        <div class="text-[11px] text-gray-400 truncate mt-1 leading-tight">${preset.fields}</div>
-      </div>
-      <div class="flex gap-1">
-        <button class="edit-btn flex items-center justify-center w-7 h-7 rounded-full text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer border-none bg-transparent" title="编辑预设">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-        </button>
-        <button class="delete-btn flex items-center justify-center w-7 h-7 rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer border-none bg-transparent" title="删除预设">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
-    `;
-    item.querySelector('.edit-btn').onclick = () => startEditing(preset);
-    item.querySelector('.delete-btn').onclick = () => deletePreset(preset.id);
+
+    const content = document.createElement('div');
+    content.className = 'flex-1 overflow-hidden mr-2';
+
+    const title = document.createElement('div');
+    title.className = 'text-xs font-bold text-gray-800 truncate';
+    title.appendChild(document.createTextNode(preset.name));
+
+    if (preset.sheetName) {
+      const sheetName = document.createElement('span');
+      sheetName.className = 'text-indigo-500 ml-1';
+      sheetName.textContent = `#${preset.sheetName}`;
+      title.appendChild(document.createTextNode(' '));
+      title.appendChild(sheetName);
+    }
+
+    const fields = document.createElement('div');
+    fields.className = 'text-[11px] text-gray-400 truncate mt-1 leading-tight';
+    fields.textContent = preset.fields;
+
+    content.appendChild(title);
+    content.appendChild(fields);
+
+    const actions = document.createElement('div');
+    actions.className = 'flex gap-1';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn flex items-center justify-center w-7 h-7 rounded-full text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer border-none bg-transparent';
+    editBtn.title = '编辑预设';
+    editBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+    editBtn.onclick = () => startEditing(preset);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn flex items-center justify-center w-7 h-7 rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all cursor-pointer border-none bg-transparent';
+    deleteBtn.title = '删除预设';
+    deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    deleteBtn.onclick = () => deletePreset(preset.id);
+
+    actions.appendChild(editBtn);
+    actions.appendChild(deleteBtn);
+
+    item.appendChild(content);
+    item.appendChild(actions);
     presetList.appendChild(item);
 
     // 2. Dropdown Option
